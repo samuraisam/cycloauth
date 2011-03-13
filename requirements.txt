@@ -1,0 +1,2 @@
+-e git+git://github.com/fiorix/cyclone#egg=cyclone
+oauth2
