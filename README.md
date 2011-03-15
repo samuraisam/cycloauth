@@ -80,7 +80,7 @@ Protecting a service with OAuth authentication is pretty easy. It is important t
         self.write('\n holy protected resources batman!')
         self.finish()
 
-You are responsible for pulling other user information from your own database based on the `oauth_token` and `oauth_consumer` provide on the resource.
+You are responsible for pulling other user information from your own database based on the `oauth_token` and `oauth_consumer` provided on the resource.
 
 ## Less-Than-Basic Usage
 
@@ -110,3 +110,10 @@ The example implementation (actually the default one, but you get the idea):
         cb = token.get_callback_url()
         self.redirect(cb)
 
+This handler is then provided via the full dot-notated path of the `RequestHandler` in your settings:
+
+    settings['oauth_authorization_handler'] = 'mypackage.mysubpackage.AuthorizeHandler'
+
+### Using the MongoDB storage backend
+
+More likely than not in-memory OAuth Token storage will not be suitable for you.

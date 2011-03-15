@@ -211,7 +211,7 @@ class Application(cyclone.web.Application, cycloauth.provider.OAuthApplicationMi
         (r'/native/protected_method', NativeProtectedMethodHandler),
         (r'/run_simple_tests', RunTestHandler)
     ]
-    settings = dict(debug=True)
+    settings = dict(debug=True)#, oauth_storage_factory='cycloauth.storage.mongodb.MongoDBStorage')
     handlers += cycloauth.provider.handlers(settings)
     cyclone.web.Application.__init__(self, handlers, **settings)
 
