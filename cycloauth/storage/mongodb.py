@@ -78,7 +78,6 @@ class MongoDBStorage(BaseStorage):
   def save_consumer(self, consumer):
     yield self.mongo_ensure(self.consumer_collection, {'key': 1})
     r = consumer.to_dict()
-    print 'consumer', r
     yield self.mongo_save(self.consumer_collection, r)
     defer.returnValue(MongoConsumer.from_dict(r))
   

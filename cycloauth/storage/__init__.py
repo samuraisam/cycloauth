@@ -64,11 +64,11 @@ class IConsumer(Interface):
   secret = Attribute("")
 
 
-class Consumer(OAuthConsumer):
+class BaseConsumer(OAuthConsumer):
   implements(IConsumer)
 
 
-class Token(OAuthToken):
+class BaseToken(OAuthToken):
   implements(IToken)
 
 
@@ -88,9 +88,9 @@ class BaseStorage(object):
   "implements an in-memory Storage as a singleton"
   implements(IStorage)
   
-  request_token_factory = Token
-  access_token_factory = Token
-  consumer_factory = Consumer
+  request_token_factory = BaseToken
+  access_token_factory = BaseToken
+  consumer_factory = BaseConsumer
   
   def __init__(self, settings):
     self.consumers = {}
