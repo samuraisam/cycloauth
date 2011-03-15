@@ -7,13 +7,15 @@ cycloauth provides:
  * A simple and compliant OAuth 1.0a provider
  * HMAC-SHA1 and PLAINTEXT signature methods
  * Pluggable storage backend
- * MongoDB (using [txmongo](https://github.com/fiorix/mongo-async-python-driver/tree/master/txmongo)) storage backend bundled
+ * MongoDB storage backend bundled (using [txmongo](https://github.com/fiorix/mongo-async-python-driver/tree/master/txmongo))
  
 I am still working on tests and compliancy however am using it for a production project and so it should see regular updates toward supporting various consumer libraries.
 
 Here's how to use it:
 
 ### 1. Clone, install requirements and install:
+
+This should be done from within a `virtualenv`
  
     $ git clone git://github.com:/samuraisam/cycloauth
     $ cd cycloauth
@@ -36,10 +38,10 @@ Here's how to use it:
         settings = {'debug': True}
         handlers += handlers(settings)
         cyclone.web.Application.__init__(self, handlers, **settings)
-    
-Now run your application. With the current configuration you will be able to start testing right away. First call `/oauth/register_application` and you will get the default consumer key and secret. This behavior only works in debug mode and will only work for the default consumer key/secret. The urls that will be wired up are (customizable in settings provided to handlers).
 
- * `/oauth/request_token` used by clients to create a request token
- * `/oauth/authorize` shown to users in a web browser to request authorization to the client
- * `/oauth/access_token` used by clients to acquire an access token
- * `/oauth/register_application` DEBUG ONLY (this is only available when `debug=True` in your settings)
+By default this gives you a few URLs which are overridable in settings using the settings key in bold:
+
+ * `/oauth/request_token` **oauth_request_token_url** used by clients to create a request token
+ * `/oauth/authorize` **oauth_authorize_url** shown to users in a web browser to request authorization to the client, it uses a default handler which is overridable in settings (more on this later)
+ * `/oauth/access_token` **oauth_access_token_url** used by clients to acquire an access token
+
