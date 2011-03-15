@@ -13,7 +13,7 @@ I am still working on tests and compliancy however am using it for a production 
 
 Here's how to use it:
 
-### 1. clone, install requirements and install:
+### 1. Clone, install requirements and install:
  
     $ git clone git://github.com:/samuraisam/cycloauth
     $ cd cycloauth
@@ -22,9 +22,10 @@ Here's how to use it:
 
 ### 2. Add cycloauth handlers to your application:
  
-    import cyclone.web, cycloauth.providers
-
-    class Application(cyclone.web.Application):
+    import cyclone.web, cycloauth.provider
+    
+    # your application must include the provider mixin
+    class Application(cyclone.web.Application, cycloauth.provider.OAuthApplicationMixin):
       def __init__(self, *args, **kwargs):
         handlers = [
           ('/myapp', myapp.web.RootHandler),

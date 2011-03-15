@@ -1,4 +1,4 @@
-import urlparse, time
+import urlparse, time, functools
 import cyclone.web
 import oauth2
 from oauth2 import generate_verifier, Consumer, Error, MissingSignature
@@ -27,6 +27,21 @@ def handlers(settings):
     ret += [
       ('/oauth/register_application', RegisterApplicationHandler)]
   return ret
+
+def async_authenticated(method):
+  "same as cyclone.web.authenticated but doesn't redirect just returns 403"
+  "and works with asynchronous authentication methods (that might require a db lookup or something)"
+  "using this decorator means you do not have to use cyclone.web.asynchronous and return"
+  "values will be entirely ignored"
+  @functools.wraps(method):
+  @defer.inlineCallbacks
+  @cyclone.web.asynchronous
+  def wrapper(self, *args, **kwargs):
+    user = yield defer.maybeDeferred(self.get_current_user())
+    if not user:
+      raise cyclone.web.HTTPError(403)
+    method(self, *args, **kwargs)
+  return wrapper
 
 
 class OAuthApplicationMixin(object):
@@ -67,6 +82,23 @@ class OAuthRequestHandlerMixin(object):
       """ % {'title': e.log_message}
     else:
       return cyclone.web.RequestHandler.get_error_html(self, status_code, **kwargs)
+  
+  @defer.inlineCallbacks
+  def get_current_user(self):
+    if self.oauth_consumer and self.oauth_token:
+      defer.returenValue(self.oauth_token)
+    consumer = yield self.application.oauth_storage.get_consumer(self.oauth_params['oauth_consumer_key'])
+    token = yield self.application.oauth_storage.get_access_token(self.oauth_params['oauth_token'])
+    try:
+      self._check_signature(consumer, token)
+      self.oauth_consumer = consumer
+      self.oauth_token = token
+      defer.returnValue(self.oauth_token)
+    except:
+      log.err()
+      self.oauth_consumer = None
+      self.oauth_token = None
+      defer.returnValue(None)
   
   @property
   def oauth_consumer(self):
