@@ -40,7 +40,7 @@ This should be done from within a `virtualenv`
 By default this gives you a few URLs which are overridable in settings (more later):
 
  * `/oauth/request_token` used by clients to create a request token
- * `/oauth/authorize` shown to users in a web browser to request authorization to the client, it uses a default handler which is overridable in settings (more on this later)
+ * `/oauth/authorize` shown to users in a web browser to request authorization to the client
  * `/oauth/access_token` used by clients to acquire an access token
 
 ### 3. Create a way to register applications with your service
@@ -92,4 +92,21 @@ The default authorization handler simply generates an `oauth_verifier` and redir
  2. If the user isn't logged in, allow them to do so and redirect back to the authorize URL maintaining the `oauth_token` query parameter
  3. Optionally, generate a verifier code and set it on the request token, and display it to the user to insert into the application when returning to the consumer's app
  4. Allow the user to Approve or Deny access to the consumer, returning them to the consumer in either case
+
+The example implementation (actually the default one, but you get the idea):
+    
+    from cyclone.web import RequestHandler
+    from cycloauth.provider import OAuthRequestHandlerMixin
+    from twisted.internet import defer
+    
+    class AuthorizeHandler(RequestHandler, OAuthRequestHandlerMixin):
+      @defer.inlineCallbacks
+      @cyclone.web.asynchronous
+      def get(self):
+        str_tok = self.oauth_params['oauth_token']
+        token = yield self.application.oauth_storage.get_request_token(str_tok)
+        token.set_verifier() # here you can pass your own code to this function
+        yield self.application.oauth_storage.save_request_token(token)
+        cb = token.get_callback_url()
+        self.redirect(cb)
 
