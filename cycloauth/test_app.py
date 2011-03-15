@@ -26,8 +26,8 @@ class NativeMixin(cyclone.auth.OAuthMixin):
       method = "POST" if post_args is not None else "GET"
       oauth = self._oauth_request_parameters(
           url, access_token, all_args, method=method)
-      #headers.update(self._oauth_header(path, oauth))
-      args.update(oauth)
+      headers.update(self._oauth_header(path, oauth))
+      #args.update(oauth)
     if args: url += "?" + urllib.urlencode(args)
     print headers
     if post_args is not None:
