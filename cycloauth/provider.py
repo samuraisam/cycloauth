@@ -20,13 +20,13 @@ def handlers(settings):
   else:
     authz_mod =  AuthorizeHandler
   ret = [
-    ('/oauth/request_token', RequestTokenHandler),
-    ('/oauth/authorize', authz_mod),
-    ('/oauth/access_token', AccessTokenHandler)]
+    (settings.get('oauth_request_token_url', '/oauth/request_token'), RequestTokenHandler),
+    (settings.get('oauth_authorize_url', '/oauth/authorize'), authz_mod),
+    (settings.get('oauth_access_token_url', '/oauth/access_token'), AccessTokenHandler)]
   return ret
 
 def oauth_authenticated(method):
-  "same as cyclone.web.authenticated but doesn't redirect just returns 403"
+  "same as cyclone.web.authenticated but doesn't redirect just raises 403"
   "and works with asynchronous authentication methods (that might require a db lookup or something)"
   "using this decorator means you do not have to use cyclone.web.asynchronous and return"
   "values will be entirely ignored"
