@@ -23,21 +23,18 @@ def handlers(settings):
     ('/oauth/request_token', RequestTokenHandler),
     ('/oauth/authorize', authz_mod),
     ('/oauth/access_token', AccessTokenHandler)]
-  if 'debug' in settings and settings['debug']:
-    ret += [
-      ('/oauth/register_application', RegisterApplicationHandler)]
   return ret
 
-def async_authenticated(method):
+def oauth_authenticated(method):
   "same as cyclone.web.authenticated but doesn't redirect just returns 403"
   "and works with asynchronous authentication methods (that might require a db lookup or something)"
   "using this decorator means you do not have to use cyclone.web.asynchronous and return"
   "values will be entirely ignored"
-  @functools.wraps(method):
   @defer.inlineCallbacks
   @cyclone.web.asynchronous
+  @functools.wraps(method)
   def wrapper(self, *args, **kwargs):
-    user = yield defer.maybeDeferred(self.get_current_user())
+    user = yield self.get_oauth_token()
     if not user:
       raise cyclone.web.HTTPError(403)
     method(self, *args, **kwargs)
@@ -60,7 +57,7 @@ class OAuthApplicationMixin(object):
   @property
   def oauth_storage(self):
     if getattr(self, '_oauth_storage', None) is None:
-      factory_name = self.settings.get('oauth_storage_factory', 'mirror.web.oauth.storage.BaseStorage')
+      factory_name = self.settings.get('oauth_storage_factory', 'cycloauth.storage.BaseStorage')
       fn = '.'.join(factory_name.split('.')[:-1])
       mod = __import__(fn, globals(), locals(), [], -1)
       for part in factory_name.split('.')[1:]:
@@ -84,34 +81,38 @@ class OAuthRequestHandlerMixin(object):
       return cyclone.web.RequestHandler.get_error_html(self, status_code, **kwargs)
   
   @defer.inlineCallbacks
-  def get_current_user(self):
-    if self.oauth_consumer and self.oauth_token:
-      defer.returenValue(self.oauth_token)
-    consumer = yield self.application.oauth_storage.get_consumer(self.oauth_params['oauth_consumer_key'])
-    token = yield self.application.oauth_storage.get_access_token(self.oauth_params['oauth_token'])
-    try:
-      self._check_signature(consumer, token)
-      self.oauth_consumer = consumer
-      self.oauth_token = token
-      defer.returnValue(self.oauth_token)
-    except:
-      log.err()
-      self.oauth_consumer = None
-      self.oauth_token = None
-      defer.returnValue(None)
-  
-  @property
-  def oauth_consumer(self):
+  def get_oauth_token(self):
     consumer_key = self.oauth_params.get('oauth_consumer_key', None)
-    oauth_token_key = request.oauth_params.get('oauth_token', None)
+    oauth_token_key = self.oauth_params.get('oauth_token', None)
     if len(self.oauth_params) == 0:
       raise NotAnOAuthRequest('The request made does not contain one or more OAuth parameters.')
     elif not (consumer_key or oauth_token_key):
       raise PartialOAuthRequest('A consumer or token was not provided in the request.')
-    consumer = self.application.storage[consumer_key]
-    token = self.application.oauth_storage[token]
-    self._check_signature(consumer, token)
-    return consumer
+    if getattr(self, 'oauth_consumer', None) and getattr(self, 'oauth_token', None):
+      defer.returnValue(self.oauth_token)
+    s = self.application.oauth_storage
+    try:
+      consumer = yield s.get_consumer(consumer_key)
+      token = yield s.get_access_token(oauth_token_key)
+      self._check_signature(consumer, token)
+      self.oauth_consumer = consumer
+      self.oauth_token = token
+    except:
+      log.err()
+      self.oauth_token = self.oauth_consumer = None
+    defer.returnValue(self.oauth_token)
+    
+    def _got_oauth_info_from_storage(self, ret):
+      consumer, token = (ret[0], ret[1])
+      try:
+        self._check_signature(consumer, token)
+        self.oauth_consumer = consumer
+        self.oauth_token = token
+      except:
+        log.err()
+        self.oauth_consumer = None
+        self.oauth_token = None
+      return self.oauth_token
   
   def _check_signature(self, consumer, token):
     try:
@@ -178,7 +179,7 @@ class OAuthRequestHandlerMixin(object):
   def oauth_arguments(self):
     extracted = {}
     if self._checks_positive_for_oauth(self.request.arguments):
-      extracted = dict((k, v) for k, v in self.request.arguments.iteritems() if k.find('oauth_') >= 0)
+      extracted = dict((k, self.get_argument(k)) for k in self.request.arguments.iterkeys() if k.find('oauth_') >= 0)
     return extracted
   
   @property
@@ -187,28 +188,13 @@ class OAuthRequestHandlerMixin(object):
       extracted = {}
       extracted.update(self.oauth_header)
       extracted.update(self.oauth_arguments)
-      self._oauth_params = dict((k, extracted[k][0]) for k in extracted.iterkeys())
+      self._oauth_params = dict((k, extracted[k]) for k in extracted.iterkeys())
     return self._oauth_params
   
   @property
   def nonoauth_argument(self):
     oauth_param_keys = self.oauth_params.keys()
     return dict([k, v] for k, v in self.params.iteritems() if k not in oauth_param_keys)
-
-
-class RegisterApplicationHandler(cyclone.web.RequestHandler, OAuthRequestHandlerMixin):
-  @defer.inlineCallbacks
-  @cyclone.web.asynchronous
-  def get(self):
-    c = yield self.application.oauth_storage.add_consumer()
-    c.key = 'omgnowai'
-    c.secret = 'omgyeswai'
-    yield self.application.oauth_storage.save_consumer(c)
-    self.write(dict(
-      key=c.key,
-      secret=c.secret
-    ))
-    self.finish()
 
 
 class RequestTokenHandler(cyclone.web.RequestHandler, OAuthRequestHandlerMixin):
@@ -267,3 +253,4 @@ class AccessTokenHandler(cyclone.web.RequestHandler, OAuthRequestHandlerMixin):
     self.set_header('Content-Type', 'text/plain')
     self.write(access_token.to_string())
     self.finish()
+
